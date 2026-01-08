@@ -133,7 +133,7 @@ After running the Proxy Server, you need to configure the network settings on yo
 If you want to test the proxy on the same machine where the code is running:
 
 1. **Run the Proxy Server:**
-   Open your terminal and execute: `.\proxy.exe`
+   That is already running from the above step
 2. **Open Settings:**
    On Windows, go to **Settings > Network & Internet > Proxy**.
 3. **Manual Proxy Setup:**
@@ -204,15 +204,72 @@ Now, go to your friend's device and enter the IP you found above.
 ---
 
 ### Step 3: Troubleshooting Firewall (If it doesn't work)
-If your friend is connected but pages aren't loading, your **Windows Firewall** is likely blocking the connection.
+If your friend is connected but pages aren't loading, your **Windows Firewall** is likely blocking the connection. (if you using wsl)
 
 **To fix this:**
-1. Search for **"Windows Defender Firewall with Advanced Security"** on the Server laptop.
-2. Click **Inbound Rules** > **New Rule** (Right side).
-3. Select **Port** > Next.
-4. Select **TCP** and enter `8080` in **Specific local ports** > Next.
-5. Select **Allow the connection** > Next.
-6. Keep all boxes checked (Domain, Private, Public) > Next.
-7. Name it `Proxy Server Open` and click **Finish**.
+### Step 1. Off the server (ctrl+c) if it is running
 
-Now your friend can browse the internet, and you will see their traffic logs in your terminal! 
+### Step 2: Find your WSL IP Address (Internal IP)
+First, we need to know the IP address where your Linux code is running.
+
+1. Open your **VS Code Terminal (WSL)**.
+2. Run this command:
+   ```bash
+   hostname -I
+   ```
+3. You will see an IP address (e.g., 172.27.x.x or 172.29.x.x).
+4. Copy this IP. (We will call this WSL_IP).
+
+### Step 3: Create a Bridge in Windows (Port Forwarding)
+Now, tell Windows to forward all traffic from Port 8080 to your WSL IP.
+
+1. Press the **Start Button** and search for `PowerShell`.
+2. **Right-click** on it and select **"Run as Administrator"**. (Click Yes).
+3. Copy the command below, **replace `<WSL_IP>` with the IP you copied in Step 1**, and paste it into PowerShell:
+   
+   *(Note: Do not include the brackets `< >`, just write the number)*
+
+```powershell
+netsh interface portproxy add v4tov4 listenport=8080 listenaddress=0.0.0.0 connectport=8080 connectaddress=<WSL_IP>
+```
+### Step 4: Configure Windows Firewall (Temporary Fix)
+Windows Firewall often blocks incoming connections from other laptops.
+
+1. Search for **"Firewall & network protection"** in Windows Settings.
+2. You will see three networks: **Domain**, **Private**, and **Public**.
+3. Click on **Public Network (active)** (Since Hotspots are usually treated as Public).
+4. Toggle **Microsoft Defender Firewall** to **OFF**.
+   *(Remember to turn this back ON after testing).* 
+
+### Step 5: Configure Your Friend's Laptop
+Now, find the IP address that your friend needs to enter.
+
+**A. Find Your Host IP:**
+
+1. Open **Command Prompt (cmd)** on your Windows laptop.
+2. Run:
+
+```cmd
+ipconfig
+```
+3. Look for the adapter named **"Wireless LAN adapter Local Area Connection* 1"** (or similar, created by your Hotspot).
+   * The **IPv4 Address** is usually `192.168.137.1`.
+   * **Note this IP.**
+
+**B. Set Proxy on Friend's Laptop:**
+
+1. Connect your friend's laptop to your **Mobile Hotspot**.
+2. Go to **Settings > Network & Internet > Proxy**.
+3. Under **Manual proxy setup**:
+   * **Address:** Enter the IP found in Step 4A (e.g., `192.168.137.1`).
+   * **Port:** `8080`.
+4. Click **Save**.
+
+###  Final Test
+1. Go back to your VS Code (WSL) and start the server:
+
+```bash
+./proxy_server
+```
+2. Open a browser on your friend's laptop and visit `http://example.com`.
+3. Check your server terminal. You should see request logs!
